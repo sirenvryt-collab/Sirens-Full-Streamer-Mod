@@ -44,10 +44,16 @@ public final class HudRenderer implements HudElement {
         m.popMatrix();
     }
 
+    /** Final size factor of one element: the global HUD size times that element's own size. */
+    static float scaleOf(Session s, Widgets.W w) {
+        return s.scale * Look.scale(w);
+    }
+
     /** Keeps a widget on screen when the window or GUI scale shrinks (changes the saved position). */
     static void fit(Session.WidgetCfg c, Widgets.W w, Session s, MinecraftClient mc, TextRenderer tr) {
-        int bw = Math.round(Widgets.width(w, s, tr) * s.scale);
-        int bh = Math.round(Widgets.height(w) * s.scale);
+        float sc = scaleOf(s, w);
+        int bw = Math.round(Widgets.width(w, s, tr) * sc);
+        int bh = Math.round(Widgets.height(w) * sc);
         int maxX = Math.max(0, mc.getWindow().getScaledWidth() - bw);
         int maxY = Math.max(0, mc.getWindow().getScaledHeight() - bh);
         c.x = Math.max(0, Math.min(maxX, c.x));
@@ -58,8 +64,14 @@ public final class HudRenderer implements HudElement {
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
         m.translate((float) c.x, (float) c.y);
-        m.scale(s.scale, s.scale);
-        Widgets.draw(w, s, ctx, mc.textRenderer);
+        float sc = scaleOf(s, w);
+        m.scale(sc, sc);
+        Ui.begin(Look.opacity(w), Look.style(w), Look.accentOf(w));
+        try {
+            Widgets.draw(w, s, ctx, mc.textRenderer);
+        } finally {
+            Ui.end();
+        }
         m.popMatrix();
     }
 }
