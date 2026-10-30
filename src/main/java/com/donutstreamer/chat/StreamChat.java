@@ -1,5 +1,6 @@
 package com.donutstreamer.chat;
 
+import com.donutstreamer.Look;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -29,7 +30,7 @@ public final class StreamChat {
     private static final Pattern VIDEO_ID = Pattern.compile("(?:v=|youtu\\.be/|/live/|/shorts/)([A-Za-z0-9_-]{11})");
     private static final Pattern BARE_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
 
-    private static final int CAPACITY = 60;
+    private static final int CAPACITY = 150;
     private static final ChatMessage[] RING = new ChatMessage[CAPACITY];
     private static int head = 0;      // next write slot
     private static int count = 0;
@@ -92,6 +93,13 @@ public final class StreamChat {
     static void setYouTubeStatus(String s) { youtubeStatus = s; }
 
     public static synchronized long revision() { return revision; }
+
+    /** Time of the newest message (ms since epoch), or 0 when there is none. */
+    public static synchronized long lastMessageTime() {
+        if (count == 0) return 0L;
+        ChatMessage m = RING[(head - 1 + CAPACITY) % CAPACITY];
+        return m == null ? 0L : m.time;
+    }
 
     /** Copies up to out.length of the newest messages into out (oldest first). Returns how many. */
     static synchronized int newest(ChatMessage[] out) {
@@ -221,10 +229,11 @@ public final class StreamChat {
     // ---------------- messages ----------------
 
     static void add(ChatMessage m0) {
-        String text = clean(m0.text, 160);
+        String text = clean(m0.text, 500);
         String name = clean(m0.name, 25);
         if (text.isEmpty()) return;
         if (hideCommands && text.startsWith("!")) return;
+        if (Look.d.chatHideBots && isBot(name)) return;
         ChatMessage m = new ChatMessage(m0.platform, name.isEmpty() ? "user" : name, text, m0.color);
         synchronized (StreamChat.class) {
             RING[head] = m;
@@ -232,6 +241,12 @@ public final class StreamChat {
             if (count < CAPACITY) count++;
             revision++;
         }
+    }
+
+    private static boolean isBot(String name) {
+        String n = name.toLowerCase(java.util.Locale.ROOT);
+        return n.equals("nightbot") || n.equals("streamelements") || n.equals("streamlabs") || n.equals("moobot")
+                || n.equals("fossabot") || n.equals("wizebot") || n.equals("sery_bot") || n.equals("soundalerts");
     }
 
     private static String clean(String s, int max) {
