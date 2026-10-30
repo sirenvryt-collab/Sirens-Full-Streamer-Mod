@@ -46,28 +46,75 @@ public final class Ui {
         }
     }
 
-    /** HUD card at the current matrix origin: layered soft shadow, gradient body, glass highlight, glowing accent edge. */
+    // ---- per-widget look (set by HudRenderer right before a widget is drawn) ----
+    private static int styleOpacity = 100;
+    private static int styleMode = 0;
+    private static int styleAccent = 0;
+
+    /** Sets the look used by {@link #card} until {@link #end()}: background opacity %, style 0..3, accent override (0 = auto). */
+    public static void begin(int opacity, int style, int accentOverride) {
+        styleOpacity = Math.max(0, Math.min(100, opacity));
+        styleMode = style;
+        styleAccent = accentOverride;
+    }
+
+    public static void end() {
+        styleOpacity = 100;
+        styleMode = 0;
+        styleAccent = 0;
+    }
+
+    /** Multiplies the alpha of an ARGB colour by f (0..1). */
+    public static int mulAlpha(int argb, float f) {
+        int a = Math.round((argb >>> 24) * Math.max(0f, Math.min(1f, f)));
+        return (a << 24) | (argb & 0xFFFFFF);
+    }
+
+    private static void fillA(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
+        if ((color >>> 24) == 0 || x2 <= x1 || y2 <= y1) return;
+        ctx.fill(x1, y1, x2, y2, color);
+    }
+
+    /**
+     * HUD card at the current matrix origin. Style 0 Classic (gradient, glass highlight, glowing accent edge),
+     * 1 Flat (solid with an accent edge), 2 Outline (see-through with a coloured border), 3 Text only (nothing).
+     */
     public static void card(DrawContext ctx, int w, int h, int accent) {
+        float f = styleOpacity / 100f;
+        int edge = styleAccent != 0 ? styleAccent : accent;
+        switch (styleMode) {
+            case 3:
+                return;
+            case 1:
+                fillA(ctx, 0, 0, w, h, mulAlpha(0xE00D1117, f));
+                ctx.fill(0, 0, 2, h, edge);
+                return;
+            case 2:
+                box(ctx, 0, 0, w, h, mulAlpha(0x700D1117, f), withAlpha(edge, 0xCC));
+                return;
+            default:
+                break;
+        }
         // layered drop shadow (3 thin L-shapes, fading out)
-        ctx.fill(3, h, w + 1, h + 1, 0x44000000);
-        ctx.fill(w, 3, w + 1, h, 0x44000000);
-        ctx.fill(4, h + 1, w, h + 2, 0x22000000);
-        ctx.fill(w + 1, 4, w + 2, h, 0x22000000);
+        fillA(ctx, 3, h, w + 1, h + 1, mulAlpha(0x44000000, f));
+        fillA(ctx, w, 3, w + 1, h, mulAlpha(0x44000000, f));
+        fillA(ctx, 4, h + 1, w, h + 2, mulAlpha(0x22000000, f));
+        fillA(ctx, w + 1, 4, w + 2, h, mulAlpha(0x22000000, f));
         // body: subtle vertical gradient in a handful of bands (about 8 fills, whatever the height)
         int bandH = Math.max(2, h / 8);
         for (int by = 1; by < h - 1; by += bandH) {
             int bh = Math.min(bandH, h - 1 - by);
-            ctx.fill(0, by, w, by + bh, lerpArgb(CARD_TOP, CARD_BOTTOM, by / (float) (h - 1)));
+            fillA(ctx, 0, by, w, by + bh, mulAlpha(lerpArgb(CARD_TOP, CARD_BOTTOM, by / (float) (h - 1)), f));
         }
-        ctx.fill(1, 0, w - 1, 1, CARD_TOP);
-        ctx.fill(1, h - 1, w - 1, h, CARD_BOTTOM);
+        fillA(ctx, 1, 0, w - 1, 1, mulAlpha(CARD_TOP, f));
+        fillA(ctx, 1, h - 1, w - 1, h, mulAlpha(CARD_BOTTOM, f));
         // glass highlight + inner border
         ctx.fill(2, 1, w - 2, 2, 0x22FFFFFF);
         ctx.fill(2, h - 1, w - 2, h, 0x14FFFFFF);
         // accent edge with a soft glow beside it
-        ctx.fill(0, 3, 2, h - 3, accent);
-        ctx.fill(2, 3, 3, h - 3, withAlpha(accent, 0x44));
-        ctx.fill(3, 3, 4, h - 3, withAlpha(accent, 0x18));
+        ctx.fill(0, 3, 2, h - 3, edge);
+        ctx.fill(2, 3, 3, h - 3, withAlpha(edge, 0x44));
+        ctx.fill(3, 3, 4, h - 3, withAlpha(edge, 0x18));
     }
 
     /** Small pill-shaped tag (rounded rect with centred text height 9). */
