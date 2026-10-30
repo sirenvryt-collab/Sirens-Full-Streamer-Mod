@@ -6,7 +6,7 @@ import com.donutstreamer.auction.ServerDetector;
 import com.donutstreamer.chat.ChatPanel;
 import com.donutstreamer.chat.StreamChat;
 import com.donutstreamer.music.MusicPanel;
-import com.donutstreamer.music.Spotify;
+import com.donutstreamer.music.LocalPlayer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -47,7 +47,7 @@ public final class Widgets {
         GOALBAR("goalbar", "Goal progress", false),
         LIMIT("limit", "Loss limit bar", false),
         AUCTION("auction", "Auction panel (DonutSMP)", true),
-        MUSIC("music", "Spotify now playing", true),
+        MUSIC("music", "Music player", true),
         CHAT("chat", "Stream chat (Twitch / YouTube)", false);
 
         public final String id;
@@ -81,8 +81,8 @@ public final class Widgets {
             case BARS: return 32;
             case WINBAR: case GOALBAR: case LIMIT: return 20;
             case AUCTION: return AuctionPanel.HEIGHT;
-            case MUSIC: return MusicPanel.HEIGHT;
-            case CHAT: return ChatPanel.HEIGHT;
+            case MUSIC: return MusicPanel.height();
+            case CHAT: return ChatPanel.height();
             default: return 13;
         }
     }
@@ -113,7 +113,7 @@ public final class Widgets {
             // Right side, under the auction panel.
             MinecraftClient mc = MinecraftClient.getInstance();
             int sw = (mc != null && mc.getWindow() != null) ? mc.getWindow().getScaledWidth() : 427;
-            return new int[]{Math.max(0, sw - ChatPanel.WIDTH - 8), 100};
+            return new int[]{Math.max(0, sw - ChatPanel.width() - 8), 100};
         }
         if (w == W.MUSIC) {
             // Bottom-right, clear of the hotbar and chat.
@@ -121,7 +121,7 @@ public final class Widgets {
             boolean ok = mc != null && mc.getWindow() != null;
             int sw = ok ? mc.getWindow().getScaledWidth() : 427;
             int sh = ok ? mc.getWindow().getScaledHeight() : 240;
-            return new int[]{Math.max(0, sw - MusicPanel.WIDTH - 8), Math.max(0, sh - MusicPanel.HEIGHT - 8)};
+            return new int[]{Math.max(0, sw - MusicPanel.width() - 8), Math.max(0, sh - MusicPanel.height() - 8)};
         }
         return DEFAULTS[w.ordinal()];
     }
@@ -147,13 +147,13 @@ public final class Widgets {
             case GOALBAR: return s.goal > 0;
             case TOPPAYER: return s.topPayer() != null;
             case AUCTION: return ServerDetector.isDonutSmp() && AuctionState.INSTANCE.isActive();
-            case MUSIC: return Spotify.now() != null;
-            case CHAT: return StreamChat.configured();
+            case MUSIC: return LocalPlayer.now() != null;
+            case CHAT: return ChatPanel.visible();
             default: return s.total() > 0;
         }
     }
 
-    /** True when the chat-screen preview of an idle auction / Spotify panel is switched off (/ds preview). */
+    /** True when the chat-screen preview of an idle auction / music panel is switched off (/ds preview). */
     public static boolean previewHidden(W w, Session s) {
         return !s.chatPreviews && (w == W.AUCTION || w == W.MUSIC) && !available(w, s);
     }
